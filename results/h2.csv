@@ -1,0 +1,3 @@
+seq,level,attempt,latency_ms,recv_time
+1,EMERGENCY,0,0.41,1793689520.209
+2,ROUTINE,0,0.30,1793689546.949
