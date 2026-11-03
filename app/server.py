@@ -40,8 +40,10 @@ def listener(reg_sock, ack_sock):
             kind = msg.get("type")
             with lock:
                 if kind == "REGISTER":
+                    is_new = ip not in registry
                     registry[ip] = msg.get("name", ip)
-                    print(f"\n[+] registered {registry[ip]} ({ip})")
+                    if is_new:
+                        print(f"\n[+] registered {registry[ip]} ({ip})")
                 elif kind == "UNREGISTER":
                     registry.pop(ip, None)
                     print(f"\n[-] unregistered {ip}")

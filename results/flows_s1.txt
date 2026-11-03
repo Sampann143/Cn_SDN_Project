@@ -1,0 +1,14 @@
+OFPST_FLOW reply (OF1.3) (xid=0x2):
+ cookie=0x0, duration=25.594s, table=0, n_packets=0, n_bytes=0, idle_timeout=30, priority=200,udp,dl_dst=00:00:00:00:00:04,tp_dst=5005 actions=output:3
+ cookie=0x0, duration=25.594s, table=0, n_packets=0, n_bytes=0, idle_timeout=30, priority=200,udp,dl_dst=00:00:00:00:00:03,tp_dst=5005 actions=output:3
+ cookie=0x0, duration=25.594s, table=0, n_packets=0, n_bytes=0, idle_timeout=30, priority=200,udp,dl_dst=00:00:00:00:00:02,tp_dst=5005 actions=output:3
+ cookie=0x0, duration=25.588s, table=0, n_packets=0, n_bytes=0, idle_timeout=30, priority=200,udp,dl_dst=00:00:00:00:00:01,tp_dst=5006 actions=output:1
+ cookie=0x0, duration=806.281s, table=0, n_packets=6, n_bytes=936, priority=100,udp,tp_dst=5005 actions=CONTROLLER:65535
+ cookie=0x0, duration=806.281s, table=0, n_packets=6, n_bytes=402, priority=100,udp,tp_dst=5006 actions=CONTROLLER:65535
+ cookie=0x0, duration=452.575s, table=0, n_packets=105, n_bytes=7470, idle_timeout=30, priority=10,in_port=3,dl_src=00:00:00:00:00:02,dl_dst=00:00:00:00:00:01 actions=output:1
+ cookie=0x0, duration=417.291s, table=0, n_packets=98, n_bytes=6938, idle_timeout=30, priority=10,in_port=3,dl_src=00:00:00:00:00:03,dl_dst=00:00:00:00:00:01 actions=output:1
+ cookie=0x0, duration=385.781s, table=0, n_packets=94, n_bytes=6566, idle_timeout=30, priority=10,in_port=3,dl_src=00:00:00:00:00:04,dl_dst=00:00:00:00:00:01 actions=output:1
+ cookie=0x0, duration=310.714s, table=0, n_packets=27, n_bytes=2040, idle_timeout=30, priority=10,in_port=1,dl_src=00:00:00:00:00:01,dl_dst=00:00:00:00:00:04 actions=output:3
+ cookie=0x0, duration=32.186s, table=0, n_packets=2, n_bytes=198, idle_timeout=30, priority=10,in_port=1,dl_src=00:00:00:00:00:01,dl_dst=00:00:00:00:00:03 actions=output:3
+ cookie=0x0, duration=22.457s, table=0, n_packets=2, n_bytes=198, idle_timeout=30, priority=10,in_port=1,dl_src=00:00:00:00:00:01,dl_dst=00:00:00:00:00:02 actions=output:3
+ cookie=0x0, duration=806.281s, table=0, n_packets=135, n_bytes=9346, priority=0 actions=CONTROLLER:65535
