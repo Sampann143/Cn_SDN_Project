@@ -184,9 +184,72 @@ results/      latency CSVs, flow-table dumps
 docs/         screenshots
 ```
 
-## 8. Planned for Deliverable 2
+## 8. Deliverable 2: dynamic SDN, congestion and evaluation
 
-- Bottleneck on the s1-s2 link using Open vSwitch queues, with emergency flows mapped to a priority queue.
-- Dynamic controller behaviour: poll port statistics, escalate or relax emergency handling based on congestion, and let the server's emergency events trigger the controller.
-- Challenging scenarios: UDP congestion with iperf between h5 and h6, and a link failure with rerouting.
-- Evaluation against a static best-effort baseline: latency, packet loss and delivery rate under no, moderate and heavy load.
+### 8.1 What was added
+
+- **Bottleneck link.** The s1-s2 link is capped at 10 Mbit/s with Open vSwitch QoS (HTB). The s1 port facing s2 has two queues: queue 0 (default traffic) and queue 1 (emergency, higher priority). Without a bottleneck there is no congestion, and priority would have nothing to improve. Setup code: `tests/lab.py`.
+- **Dynamic controller** (`controller/emergency_controller_d3.py`) with three modes, so the same test can compare approaches:
+  - `baseline`: emergency flows are installed but never use the priority queue.
+  - `priority`: emergency flows always use queue 1 (static).
+  - `dynamic`: the controller decides at run time (below).
+- **Dynamic behaviour.**
+  1. *Monitoring:* every second the controller reads the byte counter of the bottleneck port and computes link utilisation.
+  2. *Congestion response:* above 70% utilisation it logs `CONGESTION detected` and re-installs the emergency flows with `set_queue:1` (`PRIORITY QUEUE ON`). After utilisation stays below 30% for 3 seconds it logs `CONGESTION cleared` and returns to normal queueing.
+  3. *Application signal:* when the server starts an emergency it sends `EMERGENCY_START` to the controller over a Unix socket (`/tmp/emergency_ctrl.sock`), which forces the priority queue on for 10 seconds. A Unix socket is used because Mininet hosts are in their own network namespaces and cannot reach the controller's loopback address, but they share the filesystem. This is the application-to-network integration: application events change the switches' behaviour before congestion is even measured.
+
+### 8.2 Experiment: baseline vs static priority vs dynamic
+
+Method: 3 subscribers, 20 emergency messages per run spaced 0.5 s apart, with a UDP flood from h5 to h6 of 15 Mbit/s ("moderate") or 50 Mbit/s ("heavy") into the 10 Mbit/s link. The first 2 messages of each run are excluded from the statistics because the first packets take a detour through the controller before flows exist. Latency is one-way (server send timestamp to client receive time). Raw data: `results/d2_dynamic.csv`.
+
+| Load | Mode | Avg (ms) | p95 (ms) | Max (ms) | Delivered |
+|---|---|---|---|---|---|
+| idle | baseline | 0.37 | 0.54 | 0.65 | 100% |
+| idle | dynamic | 0.41 | 0.63 | 0.78 | 100% |
+| moderate | baseline | 85.86 | 107.65 | 108.88 | 100% |
+| moderate | priority | 0.31 | 0.44 | 0.46 | 100% |
+| moderate | dynamic | 0.36 | 0.61 | 2.00 | 100% |
+| heavy | baseline | 85.69 | 108.32 | 113.73 | 100% |
+| heavy | priority | 0.31 | 0.42 | 0.57 | 100% |
+| heavy | dynamic | 0.32 | 0.49 | 0.62 | 100% |
+
+Observations:
+- Without prioritisation, congestion raises emergency latency from about 0.4 ms to about 86 ms.
+- With the priority queue (static or dynamic), emergency latency stays at about 0.3 ms under heavy load, roughly 270 times lower than the baseline.
+- Dynamic mode matches static priority while using the priority queue only when congestion is detected or an emergency is signalled. The controller log shows `CONGESTION detected: link 100% busy` followed by `PRIORITY QUEUE ON (congestion)`.
+- In the idle run the queue still switched on briefly with `(app signal)`, showing the server's signal reaching the controller.
+- "Moderate" (15 Mbit/s offered) already exceeds the 10 Mbit/s capacity, so it behaves like the heavy case.
+- Packet loss was 0% in every run: the queue absorbs the excess and delays packets instead of dropping them, so congestion appears here as latency rather than loss.
+
+### 8.3 Challenging scenario: heavy congestion plus a failed subscriber
+
+`tests/scenario_failure.py` runs the dynamic controller under a 50 Mbit/s flood, freezes the subscriber on h3 (simulating a dead node), and sends 8 emergencies.
+
+| Subscriber | Received | Avg latency | Max latency |
+|---|---|---|---|
+| h2 | 8/8 | 0.35 ms | 0.43 ms |
+| h3 (dead) | 0/8 | n/a | n/a |
+| h4 | 8/8 | 0.23 ms | 0.34 ms |
+
+The server retransmitted to h3 three times per message and then reported `no ACK from ['10.0.0.3'] after 3 retries` for every message, naming only h3. The healthy subscribers kept receiving emergencies with sub-millisecond latency through the saturated link, and the controller switched the priority queue on at the start of the congestion.
+
+### 8.4 Reproducing the results
+
+Close any running Ryu, topology or demo process first (each script starts its own controller and network, and cleans up old state).
+
+```bash
+sudo /usr/bin/python3 tests/bottleneck_test.py     # proves the bottleneck exists
+sudo /usr/bin/python3 tests/exp_priority.py        # idle vs flood, baseline vs priority
+sudo /usr/bin/python3 tests/exp_dynamic.py         # full comparison table (about 5 min)
+sudo /usr/bin/python3 tests/scenario_failure.py    # congestion + dead subscriber
+sudo /usr/bin/python3 demo_app.py                  # interactive D1 demo (menu)
+```
+
+### 8.5 Limitations
+
+- The server sends to subscribers one message at a time. A dead subscriber delays the *next* emergency's send by about 2 s (3 retries at 0.5 s). The latency metric does not show this, because the timestamp is taken when the send begins. Fixing it would need per-message sender threads or non-blocking retransmission.
+- Dead subscribers are reported but not removed from the registry.
+- Classification is by UDP port, so any sender using port 5005 would be treated as an emergency. A real deployment would add authentication or marking at trusted network edges.
+- Utilisation thresholds (70% / 30%) and the bottleneck port are fixed in the controller configuration.
+- There is one run per condition, so the table gives no confidence intervals.
+- No link-failure rerouting was implemented; the topology is a tree with a single path.
