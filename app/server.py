@@ -17,6 +17,17 @@ seq_counter = 0
 lock = threading.Lock()
 send_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
+CTRL_SOCK = "/tmp/emergency_ctrl.sock"
+ctrl_sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+
+
+def signal_controller(text):
+    """Tell the SDN controller an emergency is starting (best effort)."""
+    try:
+        ctrl_sock.sendto(text.encode(), CTRL_SOCK)
+    except OSError:
+        pass
+
 
 def parse(data):
     """Return a dict, or None if the datagram isn't valid JSON."""
@@ -70,6 +81,8 @@ def notify(level, text):
         if needs_ack:
             pending[seq] = set(targets)
 
+    if needs_ack:
+        signal_controller("EMERGENCY_START")
     first_sent = time.time()    # kept fixed so latency includes retransmit delay
     for attempt in range(1 + MAX_RETRIES):
         with lock:

@@ -1,0 +1,4 @@
+condition,mode,avg_ms,p95_ms,max_ms,delivered_pct
+idle,baseline,0.3353703703703704,0.47,0.78,100.0
+flood,baseline,85.14518518518518,108.33,112.19,100.0
+flood,priority,0.27037037037037037,0.47,0.7,100.0

@@ -31,7 +31,7 @@ def wait_port(port, timeout=20):
     return False
 
 
-def start_ryu(app="emergency_controller.py"):
+def start_ryu(app="emergency_controller.py", mode="priority"):
     """Clean old state (this kills any running Ryu), then start Ryu."""
     os.makedirs(LOGDIR, exist_ok=True)
     subprocess.run(["mn", "-c"], stdout=subprocess.DEVNULL,
@@ -43,7 +43,8 @@ def start_ryu(app="emergency_controller.py"):
     proc = subprocess.Popen(
         [ryu_bin, "--ofp-tcp-listen-port", "6653",
          os.path.join(REPO, "controller", app)],
-        cwd=REPO, stdout=log, stderr=subprocess.STDOUT)
+        cwd=REPO, stdout=log, stderr=subprocess.STDOUT,
+        env=dict(os.environ, EMERGENCY_MODE=mode))
     if not wait_port(6653) or proc.poll() is not None:
         print(open(f"{LOGDIR}/ryu.log").read()[-1500:])
         raise SystemExit("Ryu failed to start")
