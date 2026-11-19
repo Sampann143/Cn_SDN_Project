@@ -34,6 +34,7 @@ class EmergencyControllerD3(app_manager.RyuApp):
         self.congested = False
         self.calm = 0
         self.forced_until = 0
+        self.mode = MODE
         self.active = (MODE == "priority")    # is the priority queue in use?
         self.logger.info("controller mode: %s", MODE)
         hub.spawn(self.monitor)
@@ -60,9 +61,9 @@ class EmergencyControllerD3(app_manager.RyuApp):
 
     # ---------- dynamic behaviour ----------
     def wanted(self):
-        if MODE == "baseline":
+        if self.mode == "baseline":
             return False
-        if MODE == "priority":
+        if self.mode == "priority":
             return True
         return self.congested or time.time() < self.forced_until
 
@@ -109,6 +110,12 @@ class EmergencyControllerD3(app_manager.RyuApp):
             if data.startswith(b"EMERGENCY_START"):
                 self.forced_until = time.time() + HOLD
                 self.update_state("app signal")
+            elif data.startswith(b"MODE "):
+                new = data.decode().split()[1]
+                if new in ("baseline", "priority", "dynamic"):
+                    self.mode = new
+                    self.logger.info("MODE set to %s", new)
+                    self.update_state("mode change")
 
     @set_ev_cls(ofp_event.EventOFPPortStatsReply, MAIN_DISPATCHER)
     def on_port_stats(self, ev):
